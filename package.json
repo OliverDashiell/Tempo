@@ -3,6 +3,9 @@
   "description": "Tap music",
   "version": "1.0.0",
   "author": "Oliver Bunyan <Dashb@me.com>",
+  "engines": {
+    "node": "7.10.0"
+  },
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon --ignore src/ server.js",
