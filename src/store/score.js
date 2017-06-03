@@ -1,5 +1,7 @@
 // JS Imports
-// ––
+// –– Websocket
+import ws from '../ws.js'
+
 
 
 const ScoreModule = {
@@ -35,29 +37,36 @@ const ScoreModule = {
     },
     actions: {
         get_highscores({ state, commit }) {
-            let scores = [
-                {
-                    name: "DASH",
-                    score: 30,
-                },
-                {
-                    name: "ALEX",
-                    score: 29
-                },
-                {
-                    name: "OSKA",
-                    score: 24
-                },
-                {
-                    name: "BENH",
-                    score: 4
-                },
-                {
-                    name: "HAZK",
-                    score: 3
-                }
-            ]
-            commit('set_highscores', scores)
+            // let scores = [
+            //     {
+            //         name: "DASH",
+            //         score: 30,
+            //     },
+            //     {
+            //         name: "ALEX",
+            //         score: 29
+            //     },
+            //     {
+            //         name: "OSKA",
+            //         score: 24
+            //     },
+            //     {
+            //         name: "BENH",
+            //         score: 4
+            //     },
+            //     {
+            //         name: "HAZK",
+            //         score: 3
+            //     }
+            // ]
+            ws.rpc('getScores').then(scores=>{
+                commit('set_highscores', scores)
+            })
+        },
+        submit_highscore({ state, commit }, params) {
+            ws.rpc('submitScore', params).then(()=>{
+                commit('set_highscores', scores)
+            })
         },
         update_color({ state, commit }, color) {
             commit('set_color', color)

@@ -16,7 +16,7 @@ Vue.config.productionTip = false
 // setup and start app
 function begin() {
     // begin render
-    new Vue({
+    window.app = new Vue({
         el: '#Main',
         store,
         router,

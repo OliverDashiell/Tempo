@@ -2,6 +2,8 @@
 // –– Vue
 import Vue from 'vue'
 import Vuex from 'vuex'
+// –– Websocket
+import ws from '../ws';
 // –– Models
 import score from './score'
 
@@ -15,7 +17,8 @@ Vue.use(Vuex)
 const store = new Vuex.Store({
     modules: {
         score
-    }
+    },
+    plugins: [ws.vuex]
 })
 
 export default store
