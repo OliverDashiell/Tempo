@@ -1,8 +1,10 @@
 language: node_js
 node_js: '7'
 script: npm run build
+before_deploy: rm -rf node_modules/
 deploy:
   provider: heroku
+  skip_cleanup: true
   app: temp-o
   api_key:
     secure: pahdIbLYNiKpbB1n6Y5xo/fbri+urlZxHamwEHDsWiqP+OZduAuaIySXSeRBNQyLERVLEC/ibnqoVv0Ub2n9eL6+QhouY44nEakmKk5/SnuUsrZU0rJ/skq9CkKST4kej14LZmrG8D6WpbTMVwsZSdW6RvVVXLLyy0zi7zB4oBa7ZlPw3V06NNn/4uU62WXuNuppwazvVtgrdYnh0Il1fN9UVqV8SKEy6+Rlol98xO/ZQdqBk3NAhsnJPDFOgNY7D3WXJgm2cPltgPBeZI6ubLBKtYptWv1y6sbZOHWVlhr25OP6URMECyAlpQzwtxQP3pMMX4bQSimbYxa+YOrPDu/z33pJjSsG3MZq5sOGtTEPCt7VYaz0jZ88KEAq/oFVb/1h+TpKaST9xAA9k+lEjpO6nJj6qIGgbb0f3XLFQ6BKUm1EdrtzptvHKlcYqFptHdkWoRAiPSMTjsl/SVUD9xXeegfws9Lopwfia70ecX40gUCRINR/MWs9zFpquYTnQjQ+A0RROrMzbEcyXNnFwVwPRCaQq0FXjkI/R1rYCQtSlYr+F1dNrDlWSPBzhvdNbGHMWGZ1pGXfnT7KOFOO/mh9IAjXKNkV4loC61And+2Fp5SeoH2IMGqjaWaZlD0/KwcaKE6oGnVt6iASX6zlJEA6P1U3xi+gjLpgPnnQSns=
