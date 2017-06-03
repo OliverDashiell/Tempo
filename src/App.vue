@@ -161,12 +161,35 @@ a {
 }
 
 
-/* ---- Transitions ---- */
+/* –––– Transitions –––– */
 
 .fade-enter-active, .fade-leave-active {
-  transition: opacity .3s
+    transition: opacity .3s
 }
 .fade-enter, .fade-leave-to {
-  opacity: 0
+    opacity: 0
+}
+
+
+/* –––– Animations –––– */
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@-webkit-keyframes spin-fade {
+    0% {
+        opacity: 1;
+        transform: rotate(0deg);
+    }
+    100% {
+        opacity: 0;
+        transform: rotate(360deg);
+    }
 }
 </style>

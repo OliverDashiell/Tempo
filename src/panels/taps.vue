@@ -1,18 +1,22 @@
 <template>
     <div class="TapsPanel noselect" :style="{background:background}">
         <div class="current-score">
-            <div class="display-over"
-                 @click="tap"
-                 :style="{color:color, zIndex:taps+2}">{{taps}}</div>
-             <div class="button" :style="{zIndex:taps+1}">
+            <div class="display-over" @click="tap"
+                 :style="{color:color, zIndex:layer_index+2}">
+                 <div v-if="stage == 'go'">Go</div>
+                 <div v-else-if="stage == 'started'">{{taps}}</div>
+             </div>
+             <div class="button" :style="{zIndex:layer_index+1}">
                  <div class="inner"></div>
              </div>
-            <div class="circle"
+            <div class="circle enlarge"
                  v-for="circle in circles"
-                 v-if="in_range(circle.index)"
-                 :id="circle.index"
-                 :style="{background:circle.color, zIndex:circle.index}"
-                 :class="{enlarge:started}"></div>
+                 :style="{background:circle.color, zIndex:circle.index}"></div>
+            <img class="instruction"
+                 :class="{transitioning:surpress_clicks}"
+                 v-if="current_instruction"
+                 :src="current_instruction"
+                 :style="{zIndex:layer_index+1}"/>
         </div>
     </div>
 </template>
@@ -29,16 +33,20 @@ import _ from 'lodash'
 import event_bus from '../event.js';
 
 
+// STUPID YELLOW - '#FFF176'
+
 export default {
     data() {
         return {
-            started: false,
+            stage: "loaded",
+            surpress_clicks: false,
             background: "#E57373",
             circles: [],
             colors: [
-                '#E57373', '#F06292', '#BA68C8', '#9575CD', '#7986CB',
-                '#64B5F6', '#4DD0E1', '#4DB6AC', '#81C784', '#AED581',
-                '#DCE775', '#FFF176', '#FFF176', '#FFB74D', '#FF8A65'
+                '#E57373', '#F06292', '#BA68C8', '#9575CD',
+                '#7986CB', '#64B5F6', '#4DD0E1', '#4DB6AC',
+                '#81C784', '#AED581', '#DCE775', '#FFB74D',
+                '#FF8A65'
             ],
             samples: {
                 high: null,
@@ -53,6 +61,18 @@ export default {
         }
     },
     computed: {
+        current_instruction() {
+            let skip_stages = ["go","started"]
+            let instruction_root = "/src/assets/images/stages/"
+            let instruction = null
+            if(!_.includes(skip_stages,this.stage)) {
+                instruction = instruction_root + this.stage + ".svg"
+            }
+            return instruction
+        },
+        layer_index() {
+            return this.circles.length
+        },
         color: {
             get() {
                 return this.$store.state.score.color
@@ -81,7 +101,7 @@ export default {
             // set an initial circle
             this.circles.push({index:0,color:color})
             // start state
-            if(!this.started) {
+            if(this.stage == "loaded") {
                 // startup tones
                 setTimeout(() => this.samples.middle.play('C'), 100)
                 setTimeout(() => this.samples.middle.play('D'), 200)
@@ -90,21 +110,43 @@ export default {
                 setTimeout(() => this.samples.middle.play('A'), 500)
             }
             else {
-                this.started = false
+                // cycle back to go
+                this.stage = "go"
             }
+            // cross fade to ambience
+            this.crossfade()
         },
         tap() {
-            // trigger start
-            if(!this.started) {
-                this.started=true
-                this.backing.play()
+            // surpress clicks
+            if(this.surpress_clicks) { return }
+            // cycle stages
+            if(this.stage == "loaded") { this.transition_stage("instruction_1") }
+            else if(this.stage == "instruction_1") { this.transition_stage("instruction_2") }
+            else if(this.stage == "instruction_2") { this.transition_stage("instruction_3") }
+            else if(this.stage == "instruction_3") { this.transition_stage("go") }
+            else if(this.stage == "go") {
+                // start tracking on next click
+                this.stage = "started"
+                // begin backing track
+                this.crossfade()
+                // start timer for 30 seconds then restart
+                setTimeout( this.init, 30000);
             }
-            // increment taps
-            this.taps++
-            // add circle animation
+            else if(this.stage == "started") {
+                // increment taps
+                this.taps++
+                // trigger sound
+                this.play_sound()
+            }
+            // always add circle animation
             this.add_circle()
-            // trigger sound
-            this.play_sound()
+        },
+        transition_stage(stage) {
+            this.surpress_clicks = true
+            setTimeout(() => {
+                this.stage = stage
+                this.surpress_clicks = false
+            }, 500);
         },
         play_sound() {
             // begin with at least one middle note
@@ -127,20 +169,15 @@ export default {
             this.random_echo()
         },
         add_circle() {
-            // get index of last added circle
-            var index = this.taps
-            // select a color excluding the last one
-            var color = this.select(this.colors, [this.circles[index-1].color])
+            // select a color excluding the last one selected
+            var color = this.select(this.colors, [this.circles[this.layer_index-1].color])
             // wait until next cycle
             this.$nextTick(() => {
                 // add circle
-                this.circles.push({index:index, color:color})
+                this.circles.push({index:this.layer_index, color:color})
                 // change score text color
                 this.color = color
             })
-        },
-        in_range(index) {
-            return (this.taps - index) < 30
         },
         select(array, exclude) {
             let selection = this.randomise(array)
@@ -160,6 +197,21 @@ export default {
             if(chance > 0.6) {
                 let note = this.select(this.notes)
                 setTimeout(() => this.echos.play(note), 600);
+            }
+        },
+        crossfade() {
+            if(this.stage == 'started') {
+                // begin backing
+                this.backing.play()
+                this.backing.fade(0,1,1000)
+                // fade out ambience
+                this.ambience.fade(1,0,1000)
+            }
+            else {
+                // fade out backing
+                this.backing.fade(1,0,2000)
+                // fade ambience back in
+                this.ambience.fade(0,1,1000)
             }
         }
     },
@@ -205,12 +257,12 @@ export default {
         })
 
         // ambient track
-        // this.ambience = new Howl({
-        //     src:['./src/assets/audio/ambience.wav'],
-        //     autoplay: true,
-        //     loop: true,
-        //     volume: 1
-        // })
+        this.ambience = new Howl({
+            src:['./src/assets/audio/ambience.wav'],
+            autoplay: true,
+            loop: true,
+            volume: 1
+        })
 
         // backing for play
         this.backing = new Howl({
@@ -295,6 +347,22 @@ export default {
     border-radius: 50%;
 }
 
+.TapsPanel
+.instruction {
+    position: absolute;
+    left: calc(50% - 250px/2);
+    top: calc(50% - 250px/2);
+    width: 250px;
+    height: 250px;
+    -webkit-animation: spin 80s infinite linear; /* Safari 4.0 - 8.0 */
+            animation: spin 80s infinite linear;
+}
+
+.TapsPanel
+.transitioning {
+    -webkit-animation: spin-fade 0.3s infinite linear; /* Safari 4.0 - 8.0 */
+            animation: spin-fade 0.3s infinite linear;
+}
 
 .TapsPanel
 .enlarge {
@@ -314,10 +382,5 @@ export default {
     }
 }
 
-.TapsPanel
-.canvas {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-}
+
 </style>

@@ -5,7 +5,7 @@
                 <input class="input" maxlength="4"
                        :class="{underline:!name}"
                        v-model="name"/>
-                <img class="outer-text" src="/src/assets/images/name.svg"/>
+                <name-spinner class="outer-text" :fill="color"></name-spinner>
             </div>
         </div>
         <div class="content" :class="{min:!name}">
@@ -31,8 +31,14 @@
 // –– Vuex Helpers
 import { mapState } from 'vuex'
 
+// –– Components
+import NameSpinner from '../components/name_spinner.vue';
+
 
 export default {
+    components: {
+        'name-spinner': NameSpinner,
+    },
     computed: {
         current_rank() {
             return this.rank ? this.rank : '?'
@@ -119,18 +125,7 @@ export default {
 
 .ScorePanel
 .name {
-    font-size: 20px;
-    letter-spacing: 2px;
-}
-
-.ScorePanel
-.user {
-    font-weight: normal;
-    margin-bottom: -2px;
-}
-
-.ScorePanel
-.name {
+    position: relative;
     display: flex;
     align-items: center;
     width: 120px;
@@ -139,10 +134,37 @@ export default {
     box-sizing: border-box;
     padding: 20px;
     margin: auto;
+    font-size: 20px;
+    letter-spacing: 2px;
+}
+
+.ScorePanel
+.name .outer-text {
+    position: absolute;
+    left: -30px;
+    top: -30px;
+
+    width: 180px;
+    height: 180px;
+}
+
+.ScorePanel
+.header
+.name .outer-text {
+    -webkit-animation: spin-fade .3s 1 linear forwards; /* Safari 4.0 - 8.0 */
+            animation: spin-fade .3s 1 linear forwards;
+}
+
+.ScorePanel
+.header.max
+.name .outer-text {
+    -webkit-animation: spin 80s infinite linear; /* Safari 4.0 - 8.0 */
+            animation: spin 80s infinite linear;
 }
 
 .ScorePanel
 .name .input {
+    z-index: 2;
     display: block;
     width: 100%;
     background: none;
@@ -191,6 +213,8 @@ export default {
     flex-grow: 1;
     padding: 0px 5px;
     text-align: center;
+    font-weight: normal;
+    margin-bottom: -2px;
 }
 
 .ScorePanel
