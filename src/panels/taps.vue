@@ -272,6 +272,10 @@ export default {
                 this.ambience.fade(1,0,1000)
             }
             else {
+                // determine fadeout duration
+                let fade_duration = 2000
+                if(this.stage == "failed") fade_duration = 100
+
                 // check if backing is playing
                 if(this.backing_id) {
                     // callback to stop track on fade
@@ -281,7 +285,7 @@ export default {
                         this.backing_id = null
                     }, this.backing_id)
                     // fade out backing
-                    this.backing.fade(1,0,2000,this.backing_id)
+                    this.backing.fade(1,0,fade_duration,this.backing_id)
                 }
                 // fade ambience back in
                 this.ambience.fade(0,1,1000)

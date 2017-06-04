@@ -229,6 +229,16 @@ export default {
     margin-bottom: -2px;
 }
 
+.ScorePanel .entry .rank,
+.ScorePanel .entry .score {
+    min-width: 35px;
+}
+
+.ScorePanel
+.entry .score {
+    text-align: right;
+}
+
 .ScorePanel
 .scores {
     width: 100%;
