@@ -32,7 +32,7 @@
 // –– Vuex Helpers
 import { mapState } from 'vuex'
 
-// –– Dependencies
+// –– Events
 import event_bus from '../event.js';
 
 // –– Panels
@@ -79,13 +79,21 @@ export default {
         toggle_right() {
             this.show = this.show == 'right' ? null : 'right'
         },
+        show_left() {
+            this.show = 'left'
+        },
+        show_right() {
+            this.show = 'right'
+        },
         clear() {
             this.show = null
         }
     },
     mounted() {
-        event_bus.$on('score', this.toggle_left)
-        event_bus.$on('info', this.toggle_right)
+        event_bus.$on('toggle_score', this.toggle_left)
+        event_bus.$on('toggle_info', this.toggle_right)
+        event_bus.$on('score', this.show_left)
+        event_bus.$on('info', this.show_right)
         event_bus.$on('home', this.clear)
     }
 }

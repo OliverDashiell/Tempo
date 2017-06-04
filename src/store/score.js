@@ -42,8 +42,9 @@ const ScoreModule = {
             })
         },
         submit_highscore({ state, commit }, params) {
-            ws.rpc('submitScore', params).then(scores => {
-                commit('set_highscores', scores)
+            ws.rpc('submitScore', params).then(result => {
+                commit('set_highscores', result.scores)
+                commit('set_rank', result.rank)
             })
         },
         update_color({ state, commit }, color) {
@@ -54,6 +55,9 @@ const ScoreModule = {
         },
         update_value({ state, commit }, value) {
             commit('set_value', value)
+        },
+        update_rank({ state, commit }, rank) {
+            commit('set_rank', rank)
         }
     }
 }

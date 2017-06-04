@@ -31,6 +31,9 @@
 // –– Vuex Helpers
 import { mapState } from 'vuex'
 
+// –– Events
+import event_bus from '../event.js';
+
 // –– Components
 import NameSpinner from '../components/name_spinner.vue';
 
@@ -41,7 +44,7 @@ export default {
     },
     computed: {
         current_rank() {
-            return this.rank ? this.rank : '?'
+            return this.rank != null ? this.rank : '?'
         },
         name: {
             get() {
@@ -53,13 +56,7 @@ export default {
                 // update name
                 this.$store.dispatch('update_name', value)
                 // submit score
-                if(!this.rank) {
-                    let submission = {
-                        name: value,
-                        score: this.score
-                    }
-                    this.$store.dispatch('submit_highscore', submission)
-                }
+                this.submit_score()
             }
         },
         ...mapState({
@@ -81,9 +78,20 @@ export default {
                 style.color = this.color
             }
             return style
+        },
+        submit_score() {
+            // submit score
+            if(this.name) {
+                let submission = { name: this.name, score: this.score }
+                this.$store.dispatch('submit_highscore', submission)
+            }
         }
     },
     mounted() {
+        // register listener for submissions
+        event_bus.$on('submit_score', this.submit_score)
+
+        // get highscore list
         this.$store.dispatch('get_highscores')
     }
 }

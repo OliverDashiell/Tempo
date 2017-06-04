@@ -1,6 +1,5 @@
 <template>
     <div class="InfoPanel">
-        INFO
     </div>
 </template>
 

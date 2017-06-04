@@ -3,17 +3,17 @@
         <div class="current-score">
             <div class="display-over" @click="handle"
                  :style="{color:color}">
-                 <div v-if="stage=='go'">Go</div>
+                 <div v-if="stage=='go'">START</div>
                  <div v-else-if="show_score">{{taps}}</div>
              </div>
-             <div class="button">
+             <div class="button" ref="button">
                  <div class="inner"></div>
              </div>
             <div class="circle enlarge"
                  v-for="circle in circles"
                  :style="{background:circle.color, zIndex:circle.index}"></div>
             <img class="instruction"
-                 :class="{transitioning:surpress_clicks}"
+                 :class="[instruction_state]"
                  v-if="current_instruction"
                  :src="current_instruction"/>
         </div>
@@ -29,7 +29,9 @@ import { mapState } from 'vuex'
 // –– Dependencies
 import { Howl } from 'howler'
 import _ from 'lodash'
-import event_bus from '../event.js';
+
+// –– Events
+import event_bus from '../event.js'
 
 
 // STUPID YELLOW - '#FFF176'
@@ -37,18 +39,19 @@ import event_bus from '../event.js';
 export default {
     data() {
         return {
-            stage: "loaded",
+            stage: null,
             surpress_clicks: false,
+            transition_state: null,
             deltas: [],
             timer: null,
             last_tap: null,
-            background: "#E57373",
+            background: '#E57373',
             circles: [],
             colors: [
                 '#E57373', '#F06292', '#BA68C8', '#9575CD',
                 '#7986CB', '#64B5F6', '#4DD0E1', '#4DB6AC',
                 '#81C784', '#AED581', '#DCE775', '#FFB74D',
-                '#FF8A65'
+                '#FF8A65', '#FFD54F'
             ],
             samples: {
                 high: null,
@@ -59,6 +62,7 @@ export default {
             backing: null,
             backing_id: null,
             echos: null,
+            fail: null,
             ranges: ['high','middle','low'],
             notes: ['C','D','E','G','A']
         }
@@ -73,11 +77,15 @@ export default {
             }
             return instruction
         },
+        instruction_state() {
+            return this.transition_state ? this.transition_state : 'holding'
+        },
         show_score() {
             // score should be show for all three states
             return this.stage == 'started' ||
-                   this.stage=='ended' ||
-                   this.stage=='failed'
+                   this.stage == 'ended'   ||
+                   this.stage == 'failed'  ||
+                   this.stage == 'again'
         },
         layer_index() {
             return this.circles.length
@@ -97,6 +105,14 @@ export default {
             set(value) {
                 this.$store.dispatch('update_value', value)
             }
+        },
+        rank: {
+            get() {
+                return this.$store.state.score.rank
+            },
+            set(value) {
+                this.$store.dispatch('update_rank', value)
+            }
         }
     },
     methods: {
@@ -107,27 +123,39 @@ export default {
             switch (this.stage) {
                 case 'loaded':
                     this.transition_stage("instruction_1")
+                    this.play_sound()
                     break
                 case 'instruction_1':
                     this.transition_stage("instruction_2")
+                    this.play_sound()
                     break
                 case 'instruction_2':
                     this.transition_stage("instruction_3")
+                    this.play_sound()
                     break
                 case 'instruction_3':
                     this.transition_stage("go")
                     event_bus.$emit('home')
+                    this.play_sound()
                     break
                 case 'go':
                     this.begin()
+                    this.play_sound()
                     break
                 case 'started':
                     this.tap()
                     break
                 case 'ended':
                 case 'failed':
-                    this.transition_stage("go")
+                    this.transition_stage("again")
+                    // open score screen
+                    event_bus.$emit('score')
+                    event_bus.$emit('submit_score')
+                    this.play_sound()
+                    break
+                case 'again':
                     this.reset()
+                    this.play_sound()
                     break
             }
             // always add circle animation
@@ -141,24 +169,17 @@ export default {
             if(this.layer_index > 1) {
                 color = this.circles[this.layer_index-1].color
             }
-            // clear taps and circles
+            // clear taps rank and circles
             this.circles = []
             this.taps = 0
+            this.rank = null
             // select a background color
             this.background = color
             this.color = color
             // set an initial circle
             this.circles.push({index:0,color:color})
-            // start state
-            if(this.stage == "loaded") {
-                // startup tones
-                setTimeout(() => this.samples.middle.play('C'), 100)
-                setTimeout(() => this.samples.middle.play('D'), 200)
-                setTimeout(() => this.samples.middle.play('E'), 300)
-                setTimeout(() => this.samples.middle.play('G'), 400)
-                setTimeout(() => this.samples.middle.play('A'), 500)
-            }
-            else {
+            // start state will have no stage set
+            if(this.stage) {
                 // cycle back to go
                 this.stage = "go"
             }
@@ -187,29 +208,32 @@ export default {
                 this.taps++
                 this.deltas.push(delta)
 				this.last_tap = now
-                // trigger sound
                 this.play_sound()
             } else {
 				// fail
                 this.end("failed")
+                this.fail.play()
 			}
         },
         end(stage) {
             // clear timer
             if(this.timer) clearTimeout(this.timer)
-            // open score screen
-            event_bus.$emit('score')
             // set end state
             this.stage = stage
-            this.transition_stage(stage)
+            this.transition_stage(stage, false)
             // cross fade to ambience
             this.crossfade()
         },
-        transition_stage(stage) {
+        transition_stage(stage,forwards=true) {
+            // set transition_state
+            this.transition_state = forwards ? 'forwards' : 'backwards'
+            // stop user click during transition
             this.surpress_clicks = true
+            // clear after transition has had time to run
             setTimeout(() => {
                 this.stage = stage
                 this.surpress_clicks = false
+                this.transition_state = null
             }, 500);
         },
         play_sound() {
@@ -229,8 +253,8 @@ export default {
                 // push range to played
                 played.push(range)
             }
-            // randomly play an echo note
-            this.random_echo()
+            // randomly play an echo note during game
+            if(this.stage == 'started') this.random_echo()
         },
         add_circle() {
             // select a color excluding the last one selected
@@ -330,6 +354,12 @@ export default {
         this.echos = new Howl({
             src: ['./src/assets/audio/echos.wav'],
             sprite: echo_sprite,
+            volume: 0.6
+        })
+
+        // fail tone
+        this.fail = new Howl({
+            src: ['./src/assets/audio/fail.wav'],
             volume: 1
         })
 
@@ -350,6 +380,26 @@ export default {
     mounted() {
         // setup start
         this.reset()
+        // startup ticks
+        this.$nextTick(() => {
+            // timeout for button
+            setTimeout(() => {
+                // show button
+                this.$refs.button.className += " startup"
+                //timeout for startup stage
+                setTimeout(() => {
+                    // start
+                    this.stage = "loaded"
+                    this.transition_stage("loaded",false)
+                },500)
+                // startup tones
+                setTimeout(() => this.samples.middle.play('C'), 100)
+                setTimeout(() => this.samples.middle.play('D'), 200)
+                setTimeout(() => this.samples.middle.play('E'), 300)
+                setTimeout(() => this.samples.middle.play('G'), 400)
+                setTimeout(() => this.samples.middle.play('A'), 500)
+            },10)
+        })
     }
 }
 </script>
@@ -402,6 +452,19 @@ export default {
 
 .TapsPanel
 .current-score
+.button {
+    transform: scale(0);
+    transition: transform 0.5s;
+}
+
+.TapsPanel
+.current-score
+.button.startup {
+    transform: scale(1);
+}
+
+.TapsPanel
+.current-score
 .button .inner {
     width: 100%;
     height: 100%;
@@ -414,7 +477,7 @@ export default {
 .current-score
 .display-over:active + .button
 .inner {
-    transform: scale(.7);
+    transform: scale(.85);
 }
 
 .TapsPanel
@@ -435,19 +498,30 @@ export default {
     top: calc(50% - 250px/2);
     width: 250px;
     height: 250px;
+}
+
+.TapsPanel
+.instruction.holding {
     -webkit-animation: spin 80s infinite linear; /* Safari 4.0 - 8.0 */
             animation: spin 80s infinite linear;
 }
 
 .TapsPanel
-.transitioning {
+.instruction.forwards  {
     -webkit-animation: spin-fade 0.3s infinite linear; /* Safari 4.0 - 8.0 */
             animation: spin-fade 0.3s infinite linear;
 }
 
 .TapsPanel
+.instruction.backwards {
+    -webkit-animation: fade-spin 0.3s linear forwards; /* Safari 4.0 - 8.0 */
+            animation: fade-spin 0.3s linear forwards;
+}
+
+.TapsPanel
 .enlarge {
-    -webkit-animation: enlarge 4s linear forwards;
+    -webkit-animation: enlarge 4s linear forwards; /* Safari 4.0 - 8.0 */
+            animation: enlarge 4s linear forwards;
 }
 
 @-webkit-keyframes enlarge {
@@ -462,6 +536,33 @@ export default {
         width: 2150px; height: 2150px;
     }
 }
+@keyframes enlarge {
+    0% {
+        top: Calc(50% - (150px/2));
+        left: Calc(50% - (150px/2));
+        width: 150px; height: 150px;
+    }
+    100% {
+        top: Calc(50% - (150px/2) - 1000px);
+        left: Calc(50% - (150px/2) - 1000px);
+        width: 2150px; height: 2150px;
+    }
+}
 
+.TapsPanel
+.pulse {
+    -webkit-animation: pulse 3s infinite linear; /* Safari 4.0 - 8.0 */
+            animation: pulse 3s infinite linear;
+}
 
+@-webkit-keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
 </style>

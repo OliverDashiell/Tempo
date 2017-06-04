@@ -173,13 +173,13 @@ a {
 
 /* –––– Animations –––– */
 
+@-webkit-keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 @-webkit-keyframes spin-fade {
@@ -189,6 +189,37 @@ a {
     }
     100% {
         opacity: 0;
+        transform: rotate(360deg);
+    }
+}
+@keyframes spin-fade {
+    0% {
+        opacity: 1;
+        transform: rotate(0deg);
+    }
+    100% {
+        opacity: 0;
+        transform: rotate(360deg);
+    }
+}
+
+@-webkit-keyframes fade-spin {
+    0% {
+        opacity: 0;
+        transform: rotate(0deg);
+    }
+    100% {
+        opacity: 1;
+        transform: rotate(360deg);
+    }
+}
+@keyframes fade-spin {
+    0% {
+        opacity: 0;
+        transform: rotate(0deg);
+    }
+    100% {
+        opacity: 1;
         transform: rotate(360deg);
     }
 }
