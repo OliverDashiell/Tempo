@@ -79,10 +79,14 @@ export default {
         toggle_right() {
             this.show = this.show == 'right' ? null : 'right'
         },
+        clear() {
+            this.show = null
+        }
     },
     mounted() {
         event_bus.$on('score', this.toggle_left)
         event_bus.$on('info', this.toggle_right)
+        event_bus.$on('home', this.clear)
     }
 }
 </script>

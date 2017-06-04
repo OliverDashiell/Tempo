@@ -1,12 +1,12 @@
 <template>
     <div class="TapsPanel noselect" :style="{background:background}">
         <div class="current-score">
-            <div class="display-over" @click="tap"
-                 :style="{color:color, zIndex:layer_index+2}">
-                 <div v-if="stage == 'go'">Go</div>
-                 <div v-else-if="stage == 'started'">{{taps}}</div>
+            <div class="display-over" @click="handle"
+                 :style="{color:color}">
+                 <div v-if="stage=='go'">Go</div>
+                 <div v-else-if="show_score">{{taps}}</div>
              </div>
-             <div class="button" :style="{zIndex:layer_index+1}">
+             <div class="button">
                  <div class="inner"></div>
              </div>
             <div class="circle enlarge"
@@ -15,8 +15,7 @@
             <img class="instruction"
                  :class="{transitioning:surpress_clicks}"
                  v-if="current_instruction"
-                 :src="current_instruction"
-                 :style="{zIndex:layer_index+1}"/>
+                 :src="current_instruction"/>
         </div>
     </div>
 </template>
@@ -40,6 +39,9 @@ export default {
         return {
             stage: "loaded",
             surpress_clicks: false,
+            deltas: [],
+            timer: null,
+            last_tap: null,
             background: "#E57373",
             circles: [],
             colors: [
@@ -55,6 +57,7 @@ export default {
             },
             ambience: null,
             backing: null,
+            backing_id: null,
             echos: null,
             ranges: ['high','middle','low'],
             notes: ['C','D','E','G','A']
@@ -69,6 +72,12 @@ export default {
                 instruction = instruction_root + this.stage + ".svg"
             }
             return instruction
+        },
+        show_score() {
+            // score should be show for all three states
+            return this.stage == 'started' ||
+                   this.stage=='ended' ||
+                   this.stage=='failed'
         },
         layer_index() {
             return this.circles.length
@@ -91,11 +100,50 @@ export default {
         }
     },
     methods: {
-        init() {
-            // clear circles
-            this.circles = []
-            // select a background color
+        handle() {
+            // surpress clicks
+            if(this.surpress_clicks) { return }
+            // cycle stages
+            switch (this.stage) {
+                case 'loaded':
+                    this.transition_stage("instruction_1")
+                    break
+                case 'instruction_1':
+                    this.transition_stage("instruction_2")
+                    break
+                case 'instruction_2':
+                    this.transition_stage("instruction_3")
+                    break
+                case 'instruction_3':
+                    this.transition_stage("go")
+                    break
+                case 'go':
+                    this.begin()
+                    break
+                case 'started':
+                    this.tap()
+                    break
+                case 'ended':
+                case 'failed':
+                    this.transition_stage("go")
+                    this.reset()
+                    break
+            }
+            // always add circle animation
+            this.add_circle()
+        },
+        reset() {
+            // reset home position
+            event_bus.$emit('home')
+            // select random color or color of last circle
             let color = this.select(this.colors)
+            if(this.layer_index > 1) {
+                color = this.circles[this.layer_index-1].color
+            }
+            // clear taps and circles
+            this.circles = []
+            this.taps = 0
+            // select a background color
             this.background = color
             this.color = color
             // set an initial circle
@@ -113,33 +161,48 @@ export default {
                 // cycle back to go
                 this.stage = "go"
             }
-            // cross fade to ambience
+        },
+        begin() {
+            // start tracking on next click
+            this.stage = "started"
+            // begin backing track
             this.crossfade()
+            // get timestamp
+			let now = Date.now()
+            // add initial delta and first tap time
+            this.deltas.push(0)
+            this.last_tap = now
+            // start timer for 30 seconds
+            this.timer = setTimeout(() => this.end("ended"), 30000)
         },
         tap() {
-            // surpress clicks
-            if(this.surpress_clicks) { return }
-            // cycle stages
-            if(this.stage == "loaded") { this.transition_stage("instruction_1") }
-            else if(this.stage == "instruction_1") { this.transition_stage("instruction_2") }
-            else if(this.stage == "instruction_2") { this.transition_stage("instruction_3") }
-            else if(this.stage == "instruction_3") { this.transition_stage("go") }
-            else if(this.stage == "go") {
-                // start tracking on next click
-                this.stage = "started"
-                // begin backing track
-                this.crossfade()
-                // start timer for 30 seconds then restart
-                setTimeout( this.init, 30000);
-            }
-            else if(this.stage == "started") {
-                // increment taps
+            // get timestamp
+			let now = Date.now()
+            // determine time between last tap and now
+			let delta = now - this.last_tap
+            // check last delta for slower tap
+            if(delta > this.deltas[this.deltas.length-1]) {
+                // advance
                 this.taps++
+                this.deltas.push(delta)
+				this.last_tap = now
                 // trigger sound
                 this.play_sound()
-            }
-            // always add circle animation
-            this.add_circle()
+            } else {
+				// fail
+                this.end("failed")
+			}
+        },
+        end(stage) {
+            // clear timer
+            if(this.timer) clearTimeout(this.timer)
+            // open score screen
+            event_bus.$emit('score')
+            // set end state
+            this.stage = stage
+            this.transition_stage(stage)
+            // cross fade to ambience
+            this.crossfade()
         },
         transition_stage(stage) {
             this.surpress_clicks = true
@@ -202,14 +265,23 @@ export default {
         crossfade() {
             if(this.stage == 'started') {
                 // begin backing
-                this.backing.play()
+                this.backing_id = this.backing.play()
                 this.backing.fade(0,1,1000)
                 // fade out ambience
                 this.ambience.fade(1,0,1000)
             }
             else {
-                // fade out backing
-                this.backing.fade(1,0,2000)
+                // check if backing is playing
+                if(this.backing_id) {
+                    // callback to stop track on fade
+                    this.backing.on('fade',() => {
+                        // stop and clear the backing id
+                        this.backing.stop(this.backing_id)
+                        this.backing_id = null
+                    }, this.backing_id)
+                    // fade out backing
+                    this.backing.fade(1,0,2000,this.backing_id)
+                }
                 // fade ambience back in
                 this.ambience.fade(0,1,1000)
             }
@@ -272,7 +344,7 @@ export default {
     },
     mounted() {
         // setup start
-        this.init()
+        this.reset()
     }
 }
 </script>
@@ -315,8 +387,12 @@ export default {
 
 .TapsPanel
 .current-score
-.button .display-over {
-    margin-top: -100%;
+.display-over {
+    z-index: 1001;
+}
+.TapsPanel .current-score .button,
+.TapsPanel .current-score .instruction {
+    z-index: 1000;
 }
 
 .TapsPanel
