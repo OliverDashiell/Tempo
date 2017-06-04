@@ -116,6 +116,7 @@ export default {
                     break
                 case 'instruction_3':
                     this.transition_stage("go")
+                    event_bus.$emit('home')
                     break
                 case 'go':
                     this.begin()

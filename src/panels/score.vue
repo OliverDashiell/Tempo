@@ -4,7 +4,7 @@
             <div class="name" :style="{background:color, color:color}">
                 <input class="input" maxlength="4"
                        :class="{underline:!name}"
-                       v-model="name"/>
+                       v-model.lazy="name"/>
                 <name-spinner class="outer-text" :fill="color"></name-spinner>
             </div>
         </div>
@@ -48,7 +48,18 @@ export default {
                 return this.$store.state.score.user
             },
             set(value) {
+                // uppercase values only
+                value = value.toUpperCase()
+                // update name
                 this.$store.dispatch('update_name', value)
+                // submit score
+                if(!this.rank) {
+                    let submission = {
+                        name: value,
+                        score: this.score
+                    }
+                    this.$store.dispatch('submit_highscore', submission)
+                }
             }
         },
         ...mapState({
@@ -176,6 +187,7 @@ export default {
     font-size: inherit;
     font-weight: inherit;
     letter-spacing: inherit;
+    text-transform: uppercase;
 }
 
 .ScorePanel .input::selection {

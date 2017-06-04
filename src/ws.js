@@ -58,15 +58,6 @@ export default {
                       sub_id    = topics[3];
                 if(store.state[topic] && sub_topic===undefined){
                     store.commit("set_"+topic, resp.result);
-                } else {
-                    if(!sub_id){
-                        store.commit("set_destinations", resp.result)
-                    } else {
-                        store.commit("push_"+sub_topic, resp.result);
-                    }
-                }
-                if(topic === "user"){
-                    store.commit("set_trip_user", resp.result)
                 }
             } else if(resp.id === 0) {
                 console.log(resp.message)
